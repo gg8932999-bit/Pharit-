@@ -1,63 +1,53 @@
+-- โหลด Library (ใช้ลิงก์สำรองที่เสถียรกว่า)
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
-local Window = OrionLib:MakeWindow({Name = "MyHub v5 - The Forge", SaveConfig = true, ConfigFolder = "OrionTest"})
 
-getgenv().SelectedOres = {}
-local oreList = {}
-
--- ฟังก์ชันค้นหาชื่อแร่ที่มีอยู่ในเซิร์ฟเวอร์ตอนนี้
-for _, v in pairs(workspace:GetChildren()) do
-    if v.Name:find("Ore") and not table.find(oreList, v.Name) then
-        table.insert(oreList, v.Name)
-    end
-end
-
-local FarmTab = Window:MakeTab({Name = "Auto Farm", Icon = "rbxassetid://4483345998"})
-
--- 1. เมนูเลือกชนิดแร่ (จะแสดงชื่อแร่ที่มันเจอในเกมจริงๆ)
-FarmTab:AddDropdown({
-	Name = "Select Ores (เลือกแร่ที่เจอในเกม)",
-	Default = "",
-	Options = oreList, 
-	Callback = function(Value)
-        if not table.find(getgenv().SelectedOres, Value) then
-            table.insert(getgenv().SelectedOres, Value)
-            OrionLib:MakeNotification({Name = "System", Content = "เลือกฟาร์ม: "..Value, Time = 2})
-        end
-	end    
+-- สร้างหน้าต่างหลัก
+local Window = OrionLib:MakeWindow({
+    Name = "MyHub v7 - Final Fix", 
+    HidePremium = true, 
+    SaveConfig = false, 
+    IntroText = "Loading MyHub..."
 })
 
--- 2. ปุ่มล้างรายการ
-FarmTab:AddButton({
-	Name = "Reset Selection (ล้างที่เลือกใหม่)",
-	Callback = function()
-		getgenv().SelectedOres = {}
-        OrionLib:MakeNotification({Name = "System", Content = "ล้างรายการแล้ว เลือกใหม่ได้เลย", Time = 3})
-	end
+-- สร้างแท็บ
+local Tab = Window:MakeTab({
+    Name = "Main Farm",
+    Icon = "rbxassetid://4483345998"
 })
 
--- 3. สวิตช์เปิดฟาร์ม
-FarmTab:AddToggle({
-    Name = "Start Farming (เริ่มฟาร์ม)",
+-- ปุ่มฟาร์มแบบรวม (ไม่ต้องเลือกชนิดแร่ เพื่อทดสอบว่าใช้งานได้ไหม)
+Tab:AddToggle({
+    Name = "Auto Farm All (ฟาร์มแร่ทั้งหมดที่เจอ)",
     Default = false,
-    Callback = function(v)
-        getgenv().AutoFarm = v
+    Callback = function(Value)
+        getgenv().AutoFarm = Value
         while getgenv().AutoFarm do
-            for _, ore in pairs(workspace:GetChildren()) do
+            for _, v in pairs(workspace:GetDescendants()) do
                 if not getgenv().AutoFarm then break end
-                
-                -- ตรวจสอบว่าตรงกับแร่ที่เลือกไหม
-                if table.find(getgenv().SelectedOres, ore.Name) and ore:FindFirstChild("ProximityPrompt") then
+                -- ค้นหาวัตถุที่มี ProximityPrompt (จุดขุด)
+                if v:IsA("ProximityPrompt") then
+                    local target = v.Parent
                     local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        hrp.CFrame = ore.CFrame
-                        task.wait(0.3)
-                        fireproximityprompt(ore.ProximityPrompt)
+                    if hrp and target:IsA("BasePart") then
+                        hrp.CFrame = target.CFrame
+                        task.wait(0.2)
+                        fireproximityprompt(v)
                     end
                 end
             end
-            task.wait(0.1)
+            task.wait(0.5)
         end
     end
 })
 
+-- ปุ่มวอล์คสปีด (เพื่อเช็คว่าสคริปต์ทำงานไหม)
+Tab:AddSlider({
+    Name = "WalkSpeed",
+    Min = 16, Max = 150, Default = 16,
+    Callback = function(Value)
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+    end    
+})
+
+-- สำคัญมาก: บรรทัดนี้ต้องอยู่ท้ายสุดเสมอเพื่อให้เมนูโชว์
 OrionLib:Init()
