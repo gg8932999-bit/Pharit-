@@ -1,30 +1,54 @@
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
-local Window = OrionLib:MakeWindow({Name = "MyHub v1 - The Forge", SaveConfig = true})
+local Window = OrionLib:MakeWindow({Name = "MyHub v3 - The Forge", SaveConfig = true})
 
-local Tab = Window:MakeTab({Name = "ฟาร์มหลัก", Icon = "rbxassetid://4483345998"})
+-- แท็บการต่อสู้และฟาร์ม
+local CombatTab = Window:MakeTab({Name = "Combat & Farm", Icon = "rbxassetid://4483345998"})
 
-Tab:AddToggle({
-    Name = "เปิดวิ่งไว (Speed 60)",
+-- 🛡️ ระบบอมตะ
+CombatTab:AddToggle({
+    Name = "God Mode (มอนสเตอร์ตีไม่เข้า)",
     Default = false,
     Callback = function(v)
-        getgenv().SpeedEnabled = v
-        spawn(function()
-            while getgenv().SpeedEnabled do
-                local char = game.Players.LocalPlayer.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    char.Humanoid.WalkSpeed = 60
+        getgenv().GodMode = v
+        local char = game.Players.LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetChildren()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.CanTouch = not v 
                 end
-                task.wait(0.5)
             end
-            if game.Players.LocalPlayer.Character then
-                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
-            end
-        end)
+        end
     end
 })
 
-Tab:AddToggle({
-    Name = "ฟาร์มแร่อัตโนมัติ",
+-- ⚔️ ระบบฆ่ามอนสเตอร์อัตโนมัติ
+CombatTab:AddToggle({
+    Name = "Auto Kill Monsters (ฆ่ามอนรอบตัว)",
+    Default = false,
+    Callback = function(v)
+        getgenv().AutoKill = v
+        while getgenv().AutoKill do
+            for _, monster in pairs(workspace:GetChildren()) do
+                if not getgenv().AutoKill then break end
+                if monster:FindFirstChild("Humanoid") and monster.Humanoid.Health > 0 then
+                    local playerHRP = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local monsterHRP = monster:FindFirstChild("HumanoidRootPart")
+                    if playerHRP and monsterHRP then
+                        local dist = (playerHRP.Position - monsterHRP.Position).magnitude
+                        if dist < 25 then
+                            monster.Humanoid.Health = 0 -- แก้ไขตามระบบโจมตีของเกม
+                        end
+                    end
+                end
+            end
+            task.wait(0.5)
+        end
+    end
+})
+
+-- ⛏️ ระบบฟาร์มแร่เดิมของคุณ
+CombatTab:AddToggle({
+    Name = "Auto Farm Ores (ฟาร์มแร่)",
     Default = false,
     Callback = function(v)
         getgenv().AutoFarm = v
