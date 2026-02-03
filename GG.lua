@@ -1,97 +1,131 @@
-local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = KavoLib.CreateLib("MyHub v10 - ระบบภาษาไทย", "BloodTheme")
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- ตั้งค่าตัวแปร
+local Window = Rayfield:CreateWindow({
+   Name = "MyHub v12 - ระบบฟาร์มภาษาไทย",
+   LoadingTitle = "กำลังโหลดระบบ...",
+   LoadingSubtitle = "by MyHub",
+   ConfigurationSaving = { Enabled = false },
+   KeySystem = false -- ปิดระบบคีย์เพื่อให้ใช้งานได้ทันที
+})
+
+-- ตัวแปรเก็บค่าต่างๆ
 getgenv().SelectedOres = {}
 getgenv().SelectedMobs = {}
 
-local Tab1 = Window:NewTab("ฟาร์มแร่ & หิน")
-local MineSection = Tab1:NewSection("ตั้งค่าการขุด")
+-- [[ แท็บฟาร์มแร่ ]]
+local MineTab = Window:CreateTab("ขุดแร่ & หิน", 4483345998)
 
-MineSection:NewDropdown("เลือกชนิดหิน/แร่", "เลือกหินที่ต้องการฟาร์ม", {"Stone", "Iron Ore", "Gold Ore", "Diamond Ore", "Coal"}, function(Value)
-    if not table.find(getgenv().SelectedOres, Value) then
-        table.insert(getgenv().SelectedOres, Value)
-    else
-        for i, v in pairs(getgenv().SelectedOres) do
-            if v == Value then table.remove(getgenv().SelectedOres, i) end
-        end
-    end
-end)
+MineTab:CreateDropdown({
+   Name = "เลือกชนิดหิน/แร่ที่จะขุด",
+   Options = {"Stone", "Iron Ore", "Gold Ore", "Diamond Ore", "Emerald", "Ruby"},
+   CurrentOption = {},
+   MultipleOptions = true,
+   Callback = function(Options)
+       getgenv().SelectedOres = Options
+   end,
+})
 
-MineSection:NewToggle("เริ่มขุดแร่ที่เลือก", "วาร์ปไปขุดเฉพาะแร่ที่เลือก", function(state)
-    getgenv().AutoMine = state
-    while getgenv().AutoMine do
-        for _, v in pairs(workspace:GetDescendants()) do
-            if not getgenv().AutoMine then break end
-            local isTarget = false
-            for _, name in pairs(getgenv().SelectedOres) do
-                if v.Name:find(name) then isTarget = true break end
-            end
-            if isTarget and v:IsA("ProximityPrompt") then
-                local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if hrp and v.Parent:IsA("BasePart") then
-                    hrp.CFrame = v.Parent.CFrame
-                    task.wait(0.2)
-                    fireproximityprompt(v)
-                end
-            end
-        end
-        task.wait(0.5)
-    end
-end)
+MineTab:CreateToggle({
+   Name = "เริ่มขุดอัตโนมัติ (ข้ามแร่ที่ไม่เลือก)",
+   CurrentValue = false,
+   Callback = function(Value)
+       getgenv().AutoMine = Value
+       while getgenv().AutoMine do
+           for _, v in pairs(workspace:GetDescendants()) do
+               if not getgenv().AutoMine then break end
+               -- เช็คว่าชื่อตรงกับที่เลือกไว้ไหม
+               local isTarget = false
+               for _, targetName in pairs(getgenv().SelectedOres) do
+                   if v.Name == targetName then isTarget = true break end
+               end
 
-local Tab2 = Window:NewTab("ฟาร์มมอนสเตอร์")
-local MobSection = Tab2:NewSection("ตั้งค่าการตีมอน")
+               if isTarget and v:IsA("ProximityPrompt") then
+                   local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                   if hrp then
+                       hrp.CFrame = v.Parent.CFrame
+                       task.wait(0.2)
+                       fireproximityprompt(v)
+                   end
+               end
+           end
+           task.wait(0.5)
+       end
+   end,
+})
 
-MobSection:NewDropdown("เลือกประเภทมอนสเตอร์", "เลือกมอนที่ต้องการตี", {"Slime", "Goblin", "Skeleton", "Wolf"}, function(Value)
-    if not table.find(getgenv().SelectedMobs, Value) then
-        table.insert(getgenv().SelectedMobs, Value)
-    else
-        for i, v in pairs(getgenv().SelectedMobs) do
-            if v == Value then table.remove(getgenv().SelectedMobs, i) end
-        end
-    end
-end)
+-- [[ แท็บต่อสู้ ]]
+local CombatTab = Window:CreateTab("ระบบต่อสู้", 4483345998)
 
-MobSection:NewToggle("เริ่มตีมอนสเตอร์", "วาร์ปไปตีมอนสเตอร์ที่เลือก", function(state)
-    getgenv().AutoKill = state
-    while getgenv().AutoKill do
-        for _, mob in pairs(workspace.Enemies:GetChildren()) do -- แก้ตรง workspace.Enemies ให้ตรงกับที่เก็บมอนในเกม
-            if not getgenv().AutoKill then break end
-            if table.find(getgenv().SelectedMobs, mob.Name) and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    hrp.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
-                    -- ใส่คำสั่งตีตรงนี้ (เช่น รีโมทโจมตี)
-                end
-            end
-        end
-        task.wait(0.1)
-    end
-end)
+CombatTab:CreateDropdown({
+   Name = "เลือกมอนสเตอร์ (รายชื่อทั้งหมด)",
+   Options = {"Slime", "Goblin", "Skeleton", "Orc", "Wolf", "Boss"},
+   CurrentOption = {},
+   MultipleOptions = true,
+   Callback = function(Options)
+       getgenv().SelectedMobs = Options
+   end,
+})
 
-local Tab3 = Window:NewTab("ตั้งค่าตัวละคร")
-local PlayerSection = Tab3:NewSection("ตัวช่วยเอาตัวรอด")
+CombatTab:CreateToggle({
+   Name = "เริ่มตีมอนสเตอร์อัตโนมัติ",
+   CurrentValue = false,
+   Callback = function(Value)
+       getgenv().AutoKill = Value
+       -- ใส่ระบบโจมตีของคุณที่นี่
+   end,
+})
 
-PlayerSection:NewToggle("เปิดโหมดอมตะ", "มอนสเตอร์ตีไม่เข้า", function(state)
-    getgenv().GodMode = state
-    local char = game.Players.LocalPlayer.Character
-    if char then
-        for _, part in pairs(char:GetChildren()) do
-            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                part.CanTouch = not state
-            end
-        end
-    end
-end)
+-- [[ แท็บตั้งค่าตัวละคร & แสง ]]
+local SettingTab = Window:CreateTab("ตั้งค่าตัวละคร", 4483345998)
 
-PlayerSection:NewToggle("ซื้อโพชั่นอัตโนมัติ", "ซื้อยาเพิ่มเลือดเมื่อเงินพอ", function(state)
-    getgenv().AutoBuy = state
-    while getgenv().AutoBuy do
-        -- ใส่คำสั่งซื้อยาของเกมคุณตรงนี้
-        task.wait(5)
-    end
-end)
+SettingTab:CreateSlider({
+   Name = "ความไวการบิน/เดิน",
+   Range = {16, 300},
+   Increment = 1,
+   Suffix = "Speed",
+   CurrentValue = 16,
+   Callback = function(Value)
+       game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+   end,
+})
 
-local Tab4 = Window:NewTab("เครดิต")
-Tab4:NewSection("สคริปต์โดย MyHub")
+SettingTab:CreateToggle({
+   Name = "โหมดอมตะ (God Mode)",
+   CurrentValue = false,
+   Callback = function(Value)
+       getgenv().GodMode = Value
+       -- ระบบอมตะ
+   end,
+})
+
+SettingTab:CreateToggle({
+   Name = "หายตัว (Invisiblity)",
+   CurrentValue = false,
+   Callback = function(Value)
+       -- ระบบหายตัว
+   end,
+})
+
+-- [[ แท็บหน้าจอ & แสง ]]
+local VisualTab = Window:CreateTab("หน้าจอ & แสง", 4483345998)
+
+VisualTab:CreateButton({
+   Name = "ตัดหมอก (Remove Fog)",
+   Callback = function()
+       game.Lighting.FogEnd = 100000
+       for i,v in pairs(game.Lighting:GetDescendants()) do
+           if v:IsA("Atmosphere") then v:Destroy() end
+       end
+   end,
+})
+
+VisualTab:CreateSlider({
+   Name = "เพิ่มแสงสว่าง (Brightness)",
+   Range = {0, 10},
+   Increment = 0.5,
+   Suffix = "Level",
+   CurrentValue = 2,
+   Callback = function(Value)
+       game.Lighting.Brightness = Value
+   end,
+})
