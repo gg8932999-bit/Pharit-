@@ -1,42 +1,43 @@
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
-local Window = OrionLib:MakeWindow({Name = "MyHub v4 - The Forge", SaveConfig = true, ConfigFolder = "OrionTest"})
+local Window = OrionLib:MakeWindow({Name = "MyHub v5 - The Forge", SaveConfig = true, ConfigFolder = "OrionTest"})
 
--- เก็บค่าแร่ที่เลือกไว้
 getgenv().SelectedOres = {}
+local oreList = {}
 
-local FarmTab = Window:MakeTab({Name = "Farm & Combat", Icon = "rbxassetid://4483345998"})
+-- ฟังก์ชันค้นหาชื่อแร่ที่มีอยู่ในเซิร์ฟเวอร์ตอนนี้
+for _, v in pairs(workspace:GetChildren()) do
+    if v.Name:find("Ore") and not table.find(oreList, v.Name) then
+        table.insert(oreList, v.Name)
+    end
+end
 
--- 1. เมนูเลือกชนิดแร่
+local FarmTab = Window:MakeTab({Name = "Auto Farm", Icon = "rbxassetid://4483345998"})
+
+-- 1. เมนูเลือกชนิดแร่ (จะแสดงชื่อแร่ที่มันเจอในเกมจริงๆ)
 FarmTab:AddDropdown({
-	Name = "Select Ores (เลือกชนิดแร่)",
+	Name = "Select Ores (เลือกแร่ที่เจอในเกม)",
 	Default = "",
-	Options = {"Iron Ore", "Gold Ore", "Diamond Ore", "Copper Ore", "Coal Ore"}, -- แก้ชื่อแร่ให้ตรงกับในเกมของคุณ
+	Options = oreList, 
 	Callback = function(Value)
-		-- เพิ่มหรือเอาแร่ออกจากรายการที่เลือก
         if not table.find(getgenv().SelectedOres, Value) then
             table.insert(getgenv().SelectedOres, Value)
-            OrionLib:MakeNotification({Name = "Selected", Content = "เพิ่ม: "..Value, Time = 2})
-        else
-            for i, v in pairs(getgenv().SelectedOres) do
-                if v == Value then table.remove(getgenv().SelectedOres, i) end
-            end
-            OrionLib:MakeNotification({Name = "Removed", Content = "เอาออก: "..Value, Time = 2})
+            OrionLib:MakeNotification({Name = "System", Content = "เลือกฟาร์ม: "..Value, Time = 2})
         end
 	end    
 })
 
--- 2. ปุ่มล้างรายการที่เลือก
+-- 2. ปุ่มล้างรายการ
 FarmTab:AddButton({
-	Name = "Clear Selected (ล้างรายการที่เลือก)",
+	Name = "Reset Selection (ล้างที่เลือกใหม่)",
 	Callback = function()
 		getgenv().SelectedOres = {}
-        OrionLib:MakeNotification({Name = "System", Content = "ล้างรายการแร่ทั้งหมดแล้ว", Time = 3})
+        OrionLib:MakeNotification({Name = "System", Content = "ล้างรายการแล้ว เลือกใหม่ได้เลย", Time = 3})
 	end
 })
 
--- 3. สวิตช์เปิดฟาร์ม (จะฟาร์มเฉพาะแร่ที่เลือก)
+-- 3. สวิตช์เปิดฟาร์ม
 FarmTab:AddToggle({
-    Name = "Auto Farm Selected Ores",
+    Name = "Start Farming (เริ่มฟาร์ม)",
     Default = false,
     Callback = function(v)
         getgenv().AutoFarm = v
@@ -44,13 +45,8 @@ FarmTab:AddToggle({
             for _, ore in pairs(workspace:GetChildren()) do
                 if not getgenv().AutoFarm then break end
                 
-                -- ตรวจสอบว่าแร่นี้อยู่ในรายการที่เลือกหรือไม่
-                local isSelected = false
-                for _, selectedName in pairs(getgenv().SelectedOres) do
-                    if ore.Name:find(selectedName) then isSelected = true break end
-                end
-
-                if isSelected and ore:FindFirstChild("ProximityPrompt") then
+                -- ตรวจสอบว่าตรงกับแร่ที่เลือกไหม
+                if table.find(getgenv().SelectedOres, ore.Name) and ore:FindFirstChild("ProximityPrompt") then
                     local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                     if hrp then
                         hrp.CFrame = ore.CFrame
@@ -63,8 +59,5 @@ FarmTab:AddToggle({
         end
     end
 })
-
--- ใส่ส่วนของ God Mode และ Auto Kill เดิมของคุณไว้ที่นี่ได้เลยครับ
--- ... (โค้ดส่วนอื่นคงเดิม)
 
 OrionLib:Init()
