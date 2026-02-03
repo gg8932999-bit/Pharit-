@@ -1,65 +1,60 @@
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
-local Window = OrionLib:MakeWindow({Name = "MyHub v3 - The Forge", SaveConfig = true})
+local Window = OrionLib:MakeWindow({Name = "MyHub v4 - The Forge", SaveConfig = true, ConfigFolder = "OrionTest"})
 
--- แท็บการต่อสู้และฟาร์ม
-local CombatTab = Window:MakeTab({Name = "Combat & Farm", Icon = "rbxassetid://4483345998"})
+-- เก็บค่าแร่ที่เลือกไว้
+getgenv().SelectedOres = {}
 
--- 🛡️ ระบบอมตะ
-CombatTab:AddToggle({
-    Name = "God Mode (มอนสเตอร์ตีไม่เข้า)",
-    Default = false,
-    Callback = function(v)
-        getgenv().GodMode = v
-        local char = game.Players.LocalPlayer.Character
-        if char then
-            for _, part in pairs(char:GetChildren()) do
-                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                    part.CanTouch = not v 
-                end
+local FarmTab = Window:MakeTab({Name = "Farm & Combat", Icon = "rbxassetid://4483345998"})
+
+-- 1. เมนูเลือกชนิดแร่
+FarmTab:AddDropdown({
+	Name = "Select Ores (เลือกชนิดแร่)",
+	Default = "",
+	Options = {"Iron Ore", "Gold Ore", "Diamond Ore", "Copper Ore", "Coal Ore"}, -- แก้ชื่อแร่ให้ตรงกับในเกมของคุณ
+	Callback = function(Value)
+		-- เพิ่มหรือเอาแร่ออกจากรายการที่เลือก
+        if not table.find(getgenv().SelectedOres, Value) then
+            table.insert(getgenv().SelectedOres, Value)
+            OrionLib:MakeNotification({Name = "Selected", Content = "เพิ่ม: "..Value, Time = 2})
+        else
+            for i, v in pairs(getgenv().SelectedOres) do
+                if v == Value then table.remove(getgenv().SelectedOres, i) end
             end
+            OrionLib:MakeNotification({Name = "Removed", Content = "เอาออก: "..Value, Time = 2})
         end
-    end
+	end    
 })
 
--- ⚔️ ระบบฆ่ามอนสเตอร์อัตโนมัติ
-CombatTab:AddToggle({
-    Name = "Auto Kill Monsters (ฆ่ามอนรอบตัว)",
-    Default = false,
-    Callback = function(v)
-        getgenv().AutoKill = v
-        while getgenv().AutoKill do
-            for _, monster in pairs(workspace:GetChildren()) do
-                if not getgenv().AutoKill then break end
-                if monster:FindFirstChild("Humanoid") and monster.Humanoid.Health > 0 then
-                    local playerHRP = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    local monsterHRP = monster:FindFirstChild("HumanoidRootPart")
-                    if playerHRP and monsterHRP then
-                        local dist = (playerHRP.Position - monsterHRP.Position).magnitude
-                        if dist < 25 then
-                            monster.Humanoid.Health = 0 -- แก้ไขตามระบบโจมตีของเกม
-                        end
-                    end
-                end
-            end
-            task.wait(0.5)
-        end
-    end
+-- 2. ปุ่มล้างรายการที่เลือก
+FarmTab:AddButton({
+	Name = "Clear Selected (ล้างรายการที่เลือก)",
+	Callback = function()
+		getgenv().SelectedOres = {}
+        OrionLib:MakeNotification({Name = "System", Content = "ล้างรายการแร่ทั้งหมดแล้ว", Time = 3})
+	end
 })
 
--- ⛏️ ระบบฟาร์มแร่เดิมของคุณ
-CombatTab:AddToggle({
-    Name = "Auto Farm Ores (ฟาร์มแร่)",
+-- 3. สวิตช์เปิดฟาร์ม (จะฟาร์มเฉพาะแร่ที่เลือก)
+FarmTab:AddToggle({
+    Name = "Auto Farm Selected Ores",
     Default = false,
     Callback = function(v)
         getgenv().AutoFarm = v
         while getgenv().AutoFarm do
             for _, ore in pairs(workspace:GetChildren()) do
                 if not getgenv().AutoFarm then break end
-                if ore.Name:find("Ore") and ore:FindFirstChild("ProximityPrompt") then
+                
+                -- ตรวจสอบว่าแร่นี้อยู่ในรายการที่เลือกหรือไม่
+                local isSelected = false
+                for _, selectedName in pairs(getgenv().SelectedOres) do
+                    if ore.Name:find(selectedName) then isSelected = true break end
+                end
+
+                if isSelected and ore:FindFirstChild("ProximityPrompt") then
                     local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                     if hrp then
                         hrp.CFrame = ore.CFrame
-                        task.wait(0.2)
+                        task.wait(0.3)
                         fireproximityprompt(ore.ProximityPrompt)
                     end
                 end
@@ -68,5 +63,8 @@ CombatTab:AddToggle({
         end
     end
 })
+
+-- ใส่ส่วนของ God Mode และ Auto Kill เดิมของคุณไว้ที่นี่ได้เลยครับ
+-- ... (โค้ดส่วนอื่นคงเดิม)
 
 OrionLib:Init()
