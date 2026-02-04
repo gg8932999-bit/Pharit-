@@ -1,78 +1,52 @@
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("Solo Hunters: GOD HUB ⚔️", "DarkScene")
+-- สร้างหน้าต่างเมนูแบบ Manual เพื่อลดปัญหาโหลดไม่ขึ้น
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local FarmBtn = Instance.new("TextButton")
 
--- [[ SETTINGS ]]
-_G.AutoFarm = false
-_G.Distance = 10
-_G.SelectedDungeon = "Dungeon 1"
+ScreenGui.Parent = game.CoreGui
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+MainFrame.Position = UDim2.new(0.5, -100, 0.5, -60)
+MainFrame.Size = UDim2.new(0, 200, 0, 120)
+MainFrame.Active = true
+MainFrame.Draggable = true -- สามารถลากหน้าต่างไปมาได้
 
--- [[ TABS ]]
-local MainTab = Window:NewTab("Main Auto")
-local DungeonTab = Window:NewTab("Dungeon Select")
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "Solo Hunter Hub (Fixed)"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
--- [[ 1. เมนูฟาร์มหลัก ]]
-local Section = MainTab:NewSection("Automation")
+FarmBtn.Parent = MainFrame
+FarmBtn.Position = UDim2.new(0, 20, 0, 50)
+FarmBtn.Size = UDim2.new(0, 160, 0, 50)
+FarmBtn.Text = "START AUTO"
+FarmBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+FarmBtn.TextColor3 = Color3.new(1, 1, 1)
 
-Section:NewToggle("Auto Farm (God Mode)", "วาร์ปไปเหนือหัวมอนและตีอัตโนมัติ", function(state)
-    _G.AutoFarm = state
-    if state then StartSuperFarm() end
-end)
+_G.Auto = false
+FarmBtn.MouseButton1Click:Connect(function()
+    _G.Auto = not _G.Auto
+    FarmBtn.Text = _G.Auto and "STOP AUTO" or "START AUTO"
+    FarmBtn.BackgroundColor3 = _G.Auto and Color3.fromRGB(180, 0, 0) or Color3.fromRGB(0, 180, 0)
 
-Section:NewSlider("Fly Height", "ปรับระยะความสูง", 20, 5, function(s)
-    _G.Distance = s
-end)
-
--- [[ 2. เมนูเลือกดันเจี้ยน ]]
-local DSection = DungeonTab:NewSection("Dungeon Settings")
-
-DSection:NewDropdown("Select Dungeon", "เลือกดันเจี้ยนที่ต้องการ", {"Dungeon 1", "Dungeon 2", "Dungeon 3", "Boss Raid"}, function(v)
-    _G.SelectedDungeon = v
-end)
-
-DSection:NewButton("Enter Dungeon", "กดเพื่อเข้าดันเจี้ยนทันที", function()
-    -- ระบบจะพยายามส่ง Remote ไปที่เซิร์ฟเวอร์เพื่อเริ่มเกม
-    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("StartDungeon") or 
-                   game:GetService("ReplicatedStorage"):FindFirstChild("EnterDungeon")
-    if remote then
-        remote:FireServer(_G.SelectedDungeon)
-    else
-        print("ไม่พบ Remote เข้าดันเจี้ยน กรุณาเดินเข้าประตูเอง")
-    end
-end)
-
--- [[ 3. ระบบโจมตีและวาร์ป ]]
-local LP = game.Players.LocalPlayer
-local VU = game:GetService("VirtualUser")
-
-function StartSuperFarm()
-    task.spawn(function()
-        while _G.AutoFarm do
-            task.wait(0.1)
-            pcall(function()
-                local root = LP.Character.HumanoidRootPart
-                local target = nil
-                local dist = math.huge
-                
-                -- ค้นหามอนสเตอร์ทุกที่ในแมพ
-                for _, v in pairs(workspace:GetDescendants()) do
-                    if v:IsA("Humanoid") and v.Parent:FindFirstChild("HumanoidRootPart") and v.Health > 0 then
-                        if v.Parent.Name ~= LP.Name then
-                            local d = (root.Position - v.Parent.HumanoidRootPart.Position).Magnitude
-                            if d < dist then dist = d; target = v.Parent.HumanoidRootPart end
+    if _G.Auto then
+        task.spawn(function()
+            while _G.Auto do
+                task.wait(0.1)
+                pcall(function()
+                    local lp = game.Players.LocalPlayer
+                    for _, v in pairs(workspace:GetDescendants()) do
+                        if v:IsA("Humanoid") and v.Parent:FindFirstChild("HumanoidRootPart") and v.Health > 0 then
+                            if v.Parent.Name ~= lp.Name then
+                                lp.Character.HumanoidRootPart.CFrame = v.Parent.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
+                                game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                            end
                         end
                     end
-                end
-
-                if target then
-                    -- บินล็อคเป้าเหนือหัวมอน
-                    root.CFrame = target.CFrame * CFrame.new(0, _G.Distance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                    -- จำลองการคลิกตี
-                    VU:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                end
-            end)
-        end
-    end)
-end
-
--- ระบบ Anti-AFK กันหลุด
-LP.Idled:Connect(function() VU:CaptureController() VU:ClickButton2(Vector2.new()) end)
+                end)
+            end
+        end)
+    end
+end)
