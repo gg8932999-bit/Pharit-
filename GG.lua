@@ -5,47 +5,42 @@ local Window = Library.CreateLib("Solo Hunters: GOD HUB ⚔️", "DarkScene")
 _G.AutoFarm = false
 _G.Distance = 10
 _G.SelectedDungeon = "Dungeon 1"
-_G.SelectedDifficulty = "Normal"
 
 -- [[ TABS ]]
 local MainTab = Window:NewTab("Main Auto")
-local DungeonTab = Window:NewTab("Dungeon Settings")
+local DungeonTab = Window:NewTab("Dungeon Select")
 
--- [[ MAIN AUTO SECTION ]]
+-- [[ 1. เมนูฟาร์มหลัก ]]
 local Section = MainTab:NewSection("Automation")
 
-Section:NewToggle("Auto Farm (Start Here!)", "วาร์ปไปหามอนและตีอัตโนมัติ", function(state)
+Section:NewToggle("Auto Farm (God Mode)", "วาร์ปไปเหนือหัวมอนและตีอัตโนมัติ", function(state)
     _G.AutoFarm = state
     if state then StartSuperFarm() end
 end)
 
-Section:NewSlider("Fly Height (ความสูง)", "ปรับระยะความสูงเหนือหัวมอน", 20, 5, function(s)
+Section:NewSlider("Fly Height", "ปรับระยะความสูง", 20, 5, function(s)
     _G.Distance = s
 end)
 
--- [[ DUNGEON SECTION ]]
-local DSection = DungeonTab:NewSection("Dungeon Setup")
+-- [[ 2. เมนูเลือกดันเจี้ยน ]]
+local DSection = DungeonTab:NewSection("Dungeon Settings")
 
-DSection:NewDropdown("Select Map", "เลือกด่านที่ต้องการ", {"Dungeon 1", "Dungeon 2", "Dungeon 3", "Boss Raid"}, function(v)
+DSection:NewDropdown("Select Dungeon", "เลือกดันเจี้ยนที่ต้องการ", {"Dungeon 1", "Dungeon 2", "Dungeon 3", "Boss Raid"}, function(v)
     _G.SelectedDungeon = v
 end)
 
-DSection:NewDropdown("Difficulty", "ระดับความยาก", {"Easy", "Normal", "Hard", "Nightmare"}, function(v)
-    _G.SelectedDifficulty = v
-end)
-
-DSection:NewButton("Enter Dungeon Now", "วาร์ปเข้าดันที่เลือกทันที", function()
-    -- พยายามหา Remote สำหรับเข้าดันเจี้ยน
-    local enterRemote = game:GetService("ReplicatedStorage"):FindFirstChild("EnterDungeon") or 
-                        game:GetService("ReplicatedStorage"):FindFirstChild("StartGame")
-    if enterRemote then
-        enterRemote:FireServer(_G.SelectedDungeon, _G.SelectedDifficulty)
+DSection:NewButton("Enter Dungeon", "กดเพื่อเข้าดันเจี้ยนทันที", function()
+    -- ระบบจะพยายามส่ง Remote ไปที่เซิร์ฟเวอร์เพื่อเริ่มเกม
+    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("StartDungeon") or 
+                   game:GetService("ReplicatedStorage"):FindFirstChild("EnterDungeon")
+    if remote then
+        remote:FireServer(_G.SelectedDungeon)
     else
-        print("กรุณาเดินเข้าประตูเอง หรือใช้ Remote Spy เช็คชื่อ Remote")
+        print("ไม่พบ Remote เข้าดันเจี้ยน กรุณาเดินเข้าประตูเอง")
     end
 end)
 
--- [[ CORE LOGIC ]]
+-- [[ 3. ระบบโจมตีและวาร์ป ]]
 local LP = game.Players.LocalPlayer
 local VU = game:GetService("VirtualUser")
 
@@ -54,40 +49,30 @@ function StartSuperFarm()
         while _G.AutoFarm do
             task.wait(0.1)
             pcall(function()
-                local char = LP.Character
-                local root = char:FindFirstChild("HumanoidRootPart")
-                
-                -- ค้นหามอนสเตอร์ (แบบละเอียดทุก Folder)
+                local root = LP.Character.HumanoidRootPart
                 local target = nil
                 local dist = math.huge
+                
+                -- ค้นหามอนสเตอร์ทุกที่ในแมพ
                 for _, v in pairs(workspace:GetDescendants()) do
                     if v:IsA("Humanoid") and v.Parent:FindFirstChild("HumanoidRootPart") and v.Health > 0 then
                         if v.Parent.Name ~= LP.Name then
                             local d = (root.Position - v.Parent.HumanoidRootPart.Position).Magnitude
-                            if d < dist then
-                                dist = d
-                                target = v.Parent.HumanoidRootPart
-                            end
+                            if d < dist then dist = d; target = v.Parent.HumanoidRootPart end
                         end
                     end
                 end
 
                 if target then
-                    -- 1. บินล็อคเป้า
+                    -- บินล็อคเป้าเหนือหัวมอน
                     root.CFrame = target.CFrame * CFrame.new(0, _G.Distance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                    
-                    -- 2. สั่งตี (ครอบคลุมทั้ง Click และ Remote)
+                    -- จำลองการคลิกตี
                     VU:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                    
-                    -- พยายามยิง Remote โจมตีที่พบบ่อยใน Solo Hunters
-                    local combatRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Attack") or 
-                                         game:GetService("ReplicatedStorage"):FindFirstChild("Hit")
-                    if combatRemote then combatRemote:FireServer() end
                 end
             end)
         end
     end)
 end
 
--- Anti-AFK
+-- ระบบ Anti-AFK กันหลุด
 LP.Idled:Connect(function() VU:CaptureController() VU:ClickButton2(Vector2.new()) end)
