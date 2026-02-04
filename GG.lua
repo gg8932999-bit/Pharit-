@@ -1,92 +1,51 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "MyHub v25 - The Forge [Wiki Data]",
-   LoadingTitle = "กำลังดึงข้อมูลแร่จาก IGN Wiki...",
+   Name = "MyHub v8 - Stable (ไทย)",
+   LoadingTitle = "กำลังย้อนกลับไปยังเวอร์ชันที่เสถียร...",
    ConfigurationSaving = { Enabled = false }
 })
 
--- [[ รายชื่อแร่ทั้งหมดจาก IGN Wiki ]]
-local AllOres = {
-    "Stone", "Coal", "Copper Ore", "Tin Ore", "Iron Ore", 
-    "Lead Ore", "Silver Ore", "Gold Ore", "Cobalt Ore", 
-    "Mithril Ore", "Adamantite Ore", "Titanium Ore", 
-    "Uranium Ore", "Obsidian", "Mythical Ore",
-    "Diamond", "Emerald", "Ruby", "Sapphire", "Amethyst"
-}
+-- รายชื่อแร่ทั้งหมดที่รวบรวมไว้
+local Ores = {"Stone", "Coal", "Copper Ore", "Tin Ore", "Iron Ore", "Silver Ore", "Gold Ore", "Cobalt Ore", "Mithril Ore", "Adamantite Ore"}
 
--- [[ รายชื่อมอนสเตอร์จาก Beebom ]]
-local AllMobs = {
-    "Zombie (HP 52)", "Delver Zombie (HP 175)", "Brute Zombie (HP 370)",
-    "Skeleton Rogue (HP 195)", "Axe Skeleton (HP 215)", "Slime (HP 870)",
-    "Crystal Spider (HP 720)", "Common Orc (HP 1000)", "Crystal Golem (HP 4000)",
-    "Yeti (HP 14000)"
-}
+local MainTab = Window:CreateTab("Auto Farm", 4483345998) -- แท็บซ้ายมือตามภาพ
 
--- [[ แท็บฟาร์มแร่ ]]
-local MineTab = Window:CreateTab("ระบบขุดแร่", 4483345998)
+MainTab:CreateSection("Farm Settings") -- หัวข้อขวามือตามภาพ
 
-MineTab:CreateDropdown({
-   Name = "เลือกชนิดแร่ (IGN List)",
-   Options = AllOres,
+MainTab:CreateDropdown({
+   Name = "เลือกแร่เป้าหมาย",
+   Options = Ores,
    CurrentOption = {"Stone"},
-   Callback = function(Option) getgenv().TargetOre = Option[1] end,
-})
-
-MineTab:CreateToggle({
-   Name = "เริ่มขุดอัตโนมัติ (Auto Mine)",
-   CurrentValue = false,
-   Callback = function(Value)
-       getgenv().AutoMine = Value
-       task.spawn(function()
-           while getgenv().AutoMine do
-               local found = false
-               for _, v in pairs(workspace:GetDescendants()) do
-                   if v.Name == getgenv().TargetOre and v:FindFirstChildOfClass("ProximityPrompt") then
-                       local hrp = game.Players.LocalPlayer.Character.HumanoidRootPart
-                       hrp.CFrame = v:GetPivot() * CFrame.new(0, 0, 3)
-                       task.wait(0.3)
-                       fireproximityprompt(v:FindFirstChildOfClass("ProximityPrompt"))
-                       while v.Parent and getgenv().AutoMine do task.wait(0.5) end
-                       found = true break
-                   end
-               end
-               if not found then task.wait(1) end
-           end
-       end)
+   Callback = function(Option)
+       getgenv().TargetOre = Option[1]
    end,
 })
 
--- [[ แท็บล่ามอนสเตอร์ ]]
-local MobTab = Window:CreateTab("ล่ามอนสเตอร์", 4483345998)
-
-MobTab:CreateDropdown({
-   Name = "เลือกศัตรู (Beebom List)",
-   Options = AllMobs,
-   Callback = function(v) getgenv().TargetMob = string.split(v[1], " (")[1] end,
-})
-
-MobTab:CreateToggle({
-   Name = "เริ่มล่าอัตโนมัติ (Auto Mob)",
+MainTab:CreateToggle({
+   Name = "Auto Farm Ores", -- ปุ่มเปิด/ปิดตามภาพ
    CurrentValue = false,
-   Callback = function(v) getgenv().AutoMob = v end
-})
-
--- [[ แท็บตั้งค่าตัวละคร ]]
-local SettingsTab = Window:CreateTab("ตั้งค่า & แสง", 4483345998)
-
-SettingsTab:CreateSlider({
-   Name = "ความเร็วเดิน/วิ่ง",
-   Range = {16, 300},
-   Increment = 1,
-   CurrentValue = 16,
-   Callback = function(v) game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = v end
-})
-
-SettingsTab:CreateButton({
-   Name = "เปิดไฟสว่าง (ตัดหมอก)",
-   Callback = function()
-       game.Lighting.Brightness = 2
-       game.Lighting.FogEnd = 100000
-   end
+   Callback = function(Value)
+       getgenv().StartFarm = Value
+       if Value then
+           task.spawn(function()
+               while getgenv().StartFarm do
+                   -- ใช้ Logic การค้นหาแบบ Airlines เพื่อให้ตัวขยับ
+                   for _, v in pairs(workspace:GetDescendants()) do
+                       if v.Name == getgenv().TargetOre and v:FindFirstChildOfClass("ProximityPrompt") then
+                           local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                           if hrp then
+                               hrp.CFrame = v:GetPivot() * CFrame.new(0, 0, 3)
+                               task.wait(0.3)
+                               fireproximityprompt(v:FindFirstChildOfClass("ProximityPrompt"))
+                               while v.Parent and getgenv().StartFarm do task.wait(0.5) end
+                           end
+                       end
+                       if not getgenv().StartFarm then break end
+                   end
+                   task.wait(1)
+               end
+           end)
+       end
+   end,
 })
