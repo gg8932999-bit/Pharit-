@@ -1,59 +1,51 @@
--- [[ Solo Hunters: God Mode V2 ]]
-local success, Library = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-end)
+-- สร้างเมนูแบบด่วน (ไม่ต้องพึ่ง Library นอก)
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local FarmBtn = Instance.new("TextButton")
 
-if not success then 
-    warn("Library Load Failed, Re-trying...")
-    Library = loadstring(game:HttpGet("https://pastebin.com/raw/vpf6v9S0"))() -- ลิงก์สำรอง
-end
+ScreenGui.Parent = game.CoreGui
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Position = UDim2.new(0.5, -75, 0.5, -50)
+MainFrame.Size = UDim2.new(0, 150, 0, 100)
+MainFrame.Active = true
+MainFrame.Draggable = true
 
-local Window = Library.CreateLib("Solo Hunters: God Mode ⚔️", "DarkScene")
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "Solo Hunter Hub"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 
--- [[ SETTINGS ]]
-_G.Settings = {
-    AutoFarm = false,
-    AttackDistance = 10,
-    TweenSpeed = 60,
-    AutoSkill = false
-}
+FarmBtn.Parent = MainFrame
+FarmBtn.Position = UDim2.new(0, 10, 0, 40)
+FarmBtn.Size = UDim2.new(0, 130, 0, 40)
+FarmBtn.Text = "START AUTO"
+FarmBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
 
--- [[ TABS ]]
-local MainTab = Window:NewTab("Main Farm")
-local ConfigTab = Window:NewTab("Settings")
-
-local FarmSection = MainTab:NewSection("Automation")
-
-FarmSection:NewToggle("Auto Farm (God Mode)", "บินไปเหนือหัวมอนและตีอัตโนมัติ", function(state)
-    _G.Settings.AutoFarm = state
-    if state then
+_G.Auto = false
+FarmBtn.MouseButton1Click:Connect(function()
+    _G.Auto = not _G.Auto
+    FarmBtn.Text = _G.Auto and "STOP AUTO" or "START AUTO"
+    FarmBtn.BackgroundColor3 = _G.Auto and Color3.fromRGB(170, 0, 0) or Color3.fromRGB(0, 170, 0)
+    
+    if _G.Auto then
         task.spawn(function()
-            while _G.Settings.AutoFarm do
+            while _G.Auto do
                 task.wait(0.1)
                 pcall(function()
-                    local target = nil
-                    local dist = math.huge
-                    local folder = workspace:FindFirstChild("Mobs") or workspace:FindFirstChild("Enemies") or workspace
-                    for _, v in pairs(folder:GetChildren()) do
-                        if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
-                            local mag = (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-                            if mag < dist then dist = mag; target = v end
+                    local lp = game.Players.LocalPlayer
+                    local char = lp.Character
+                    -- หาเป้าหมายใน Workspace
+                    for _, v in pairs(workspace:GetChildren()) do
+                        if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                            char.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
+                            game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
                         end
-                    end
-                    
-                    if target then
-                        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, _G.Settings.AttackDistance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                        game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                        task.wait(0.05)
-                        game:GetService("VirtualUser"):Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
                     end
                 end)
             end
         end)
     end
-end)
-
-local ConfigSection = ConfigTab:NewSection("Adjustment")
-ConfigSection:NewSlider("Attack Distance", "ความสูง", 20, 5, function(s)
-    _G.Settings.AttackDistance = s
 end)
