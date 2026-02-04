@@ -1,51 +1,47 @@
--- สร้างเมนูแบบด่วน (ไม่ต้องพึ่ง Library นอก)
-local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local FarmBtn = Instance.new("TextButton")
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("Solo Hunter: Dungeon Hub ⚔️", "DarkScene")
 
-ScreenGui.Parent = game.CoreGui
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.Position = UDim2.new(0.5, -75, 0.5, -50)
-MainFrame.Size = UDim2.new(0, 150, 0, 100)
-MainFrame.Active = true
-MainFrame.Draggable = true
+-- [[ SETTINGS ]]
+_G.SelectedDungeon = "None"
+_G.SelectedDifficulty = "Normal"
+_G.AutoFarm = false
 
-Title.Parent = MainFrame
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "Solo Hunter Hub"
-Title.TextColor3 = Color3.new(1, 1, 1)
-Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+-- [[ TABS ]]
+local MainTab = Window:NewTab("Auto Dungeon")
+local Section = MainTab:NewSection("Dungeon Selection")
 
-FarmBtn.Parent = MainFrame
-FarmBtn.Position = UDim2.new(0, 10, 0, 40)
-FarmBtn.Size = UDim2.new(0, 130, 0, 40)
-FarmBtn.Text = "START AUTO"
-FarmBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+-- 1. ตัวเลือกดันเจี้ยน
+Section:NewDropdown("Select Dungeon", "เลือกดันเจี้ยนที่ต้องการ", {"Dungeon 1", "Dungeon 2", "Dungeon 3", "Boss Map"}, function(currentOption)
+    _G.SelectedDungeon = currentOption
+    print("Selected: " .. currentOption)
+end)
 
-_G.Auto = false
-FarmBtn.MouseButton1Click:Connect(function()
-    _G.Auto = not _G.Auto
-    FarmBtn.Text = _G.Auto and "STOP AUTO" or "START AUTO"
-    FarmBtn.BackgroundColor3 = _G.Auto and Color3.fromRGB(170, 0, 0) or Color3.fromRGB(0, 170, 0)
-    
-    if _G.Auto then
-        task.spawn(function()
-            while _G.Auto do
-                task.wait(0.1)
-                pcall(function()
-                    local lp = game.Players.LocalPlayer
-                    local char = lp.Character
-                    -- หาเป้าหมายใน Workspace
-                    for _, v in pairs(workspace:GetChildren()) do
-                        if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                            char.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
-                            game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                        end
-                    end
-                end)
-            end
-        end)
+-- 2. ตัวเลือกความยาก
+Section:NewDropdown("Difficulty", "เลือกระดับความยาก", {"Easy", "Normal", "Hard", "Hell"}, function(currentOption)
+    _G.SelectedDifficulty = currentOption
+end)
+
+-- 3. ปุ่มเริ่มฟาร์ม
+Section:NewToggle("Start Auto Farm", "เริ่มวิ่งเข้าดันเจี้ยนและฟาร์ม", function(state)
+    _G.AutoFarm = state
+    if state then
+        -- ใส่โค้ดที่สั่งให้ตัวละครวาร์ปไปหน้าดันเจี้ยน หรือส่ง Remote ไปเริ่มเกม
+        StartDungeonFarm()
     end
 end)
+
+-- [[ FUNCTIONS ]]
+function StartDungeonFarm()
+    task.spawn(function()
+        while _G.AutoFarm do
+            task.wait(1)
+            -- ตัวอย่าง: ส่ง Remote ไปที่ Server เพื่อเริ่มดันเจี้ยนที่เลือก
+            -- game:GetService("ReplicatedStorage").Events.StartDungeon:FireServer(_G.SelectedDungeon, _G.SelectedDifficulty)
+            
+            -- ส่วนนี้คือ Logic การตีมอนสเตอร์ (ใช้ตัวเดิมที่เราทำไว้)
+            pcall(function()
+                -- ... (โค้ดหาเป้าหมายและโจมตีจากเวอร์ชันก่อนหน้า) ...
+            end)
+        end
+    end)
+end
