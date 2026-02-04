@@ -1,19 +1,22 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "MyHub v17 - The Forge [Detailed]",
-   LoadingTitle = "กำลังโหลดข้อมูลแร่ระดับสูง...",
-   ConfigurationSaving = { Enabled = false }
+   Name = "MyHub v19 - ระบบฟาร์มภาษาไทย (The Forge)",
+   LoadingTitle = "กำลังดึงข้อมูลจาก Airlines...",
+   ConfigurationSaving = { Enabled = false },
+   KeySystem = false -- เปิดใช้งานได้ทันทีไม่ต้องใส่คีย์
 })
 
+-[span_1](start_span)- รายชื่อแร่จริงจากฐานข้อมูลเกม[span_1](end_span)
+local OreOptions = {"Stone", "Coal", "Copper Ore", "Tin Ore", "Iron Ore", "Lead Ore", "Silver Ore", "Gold Ore", "Cobalt Ore", "Mithril Ore", "Adamantite Ore", "Diamond", "Emerald", "Ruby"}
 getgenv().SelectedOres = {}
 
-local Tab = Window:CreateTab("ระบบขุดแร่ละเอียด", 4483345998)
+-- [[ แท็บฟาร์มแร่ ]]
+local MineTab = Window:CreateTab("ฟาร์มแร่ & หิน", 4483345998)
 
--- รายชื่อแร่ที่ละเอียดที่สุดของเกม The Forge
-Tab:CreateDropdown({
-   Name = "เลือกชนิดแร่ที่ต้องการ",
-   Options = {"Stone", "Coal", "Copper Ore", "Tin Ore", "Iron Ore", "Lead Ore", "Silver Ore", "Gold Ore", "Cobalt Ore", "Mithril Ore", "Adamantite Ore", "Diamond", "Emerald", "Ruby"},
+MineTab:CreateDropdown({
+   Name = "เลือกชนิดหิน/แร่ (เลือกได้หลายอย่าง)",
+   Options = OreOptions,
    CurrentOption = {},
    MultipleOptions = true,
    Callback = function(Options)
@@ -21,18 +24,18 @@ Tab:CreateDropdown({
    end,
 })
 
-Tab:CreateToggle({
-   Name = "เริ่มฟาร์มแบบเช็คค่า HP",
+MineTab:CreateToggle({
+   Name = "เริ่มขุดอัตโนมัติ (วาร์ป+ขุดรัว)",
    CurrentValue = false,
    Callback = function(Value)
-       getgenv().AutoFarm = Value
+       getgenv().AutoMine = Value
        task.spawn(function()
-           while getgenv().AutoFarm do
+           while getgenv().AutoMine do
                local found = false
                for _, v in pairs(workspace:GetDescendants()) do
-                   if not getgenv().AutoFarm then break end
+                   if not getgenv().AutoMine then break end
                    
-                   -- ตรวจสอบชื่อแร่จากลิสต์ที่เราเลือก
+                   -[span_2](start_span)- ตรวจสอบว่าชื่อแร่ตรงกับที่เลือกไว้[span_2](end_span)
                    local isTarget = false
                    for _, target in pairs(getgenv().SelectedOres) do
                        if v.Name == target then isTarget = true break end
@@ -44,16 +47,13 @@ Tab:CreateToggle({
                            local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                            if hrp then
                                found = true
-                               -- วาร์ปไปตำแหน่งแร่
-                               hrp.CFrame = v:GetPivot() * CFrame.new(0, 0, 3)
+                               hrp.CFrame = v:GetPivot() * CFrame.new(0, 0, 2)
                                task.wait(0.2)
-                               
-                               -- วนลูปกดขุดจนกว่าแร่จะแตก (HP หมด)
+                               -[span_3](start_span)- ขุดรัวๆ จนกว่าแร่จะแตก[span_3](end_span)
                                repeat
                                    fireproximityprompt(prompt)
                                    task.wait(0.1)
-                                   -- ตรวจสอบว่าแร่ยังอยู่ไหม (ถ้าถูกทำลายแล้ว v จะไม่มี parent)
-                               until not v.Parent or not getgenv().AutoFarm
+                               until not v.Parent or not getgenv().AutoMine
                            end
                        end
                    end
@@ -64,20 +64,45 @@ Tab:CreateToggle({
    end,
 })
 
--- ส่วนของมอนสเตอร์ (ใส่รายชื่อมอนสเตอร์ในโซนต่างๆ)
-local MobTab = Window:CreateTab("มอนสเตอร์", 4483345998)
-MobTab:CreateDropdown({
-   Name = "ประเภทมอนสเตอร์",
+-- [[ แท็บต่อสู้ ]]
+local CombatTab = Window:CreateTab("ต่อสู้มอนสเตอร์", 4483345998)
+
+CombatTab:CreateDropdown({
+   Name = "เลือกชนิดมอนสเตอร์",
    Options = {"Slime", "Boar", "Skeleton Warrior", "Zombie", "Cave Spider", "Rock Golem"},
-   Callback = function(v) getgenv().TargetMob = v end
+   CurrentOption = {},
+   MultipleOptions = true,
+   Callback = function(Options)
+       getgenv().SelectedMobs = Options
+   end,
 })
 
--- ระบบตัวละคร
-local ConfigTab = Window:CreateTab("ตั้งค่า", 4483345998)
-ConfigTab:CreateSlider({
-   Name = "ความเร็วตัวละคร (บิน/เดิน)",
-   Range = {16, 350},
+CombatTab:CreateToggle({
+   Name = "ระบบอมตะ (God Mode)",
+   CurrentValue = false,
+   Callback = function(Value)
+       getgenv().GodMode = Value
+       -- เพิ่มโค้ดระบบอมตะที่นี่
+   end,
+})
+
+-- [[ แท็บตั้งค่าตัวละคร ]]
+local SettingsTab = Window:CreateTab("ตั้งค่าตัวละคร", 4483345998)
+
+SettingsTab:CreateSlider({
+   Name = "ความเร็วการบิน/เดิน",
+   Range = {16, 300},
    Increment = 1,
    CurrentValue = 16,
-   Callback = function(Value) game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value end
+   Callback = function(Value)
+       game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+   end,
+})
+
+SettingsTab:CreateButton({
+   Name = "เปิดแสงสว่าง & ตัดหมอก",
+   Callback = function()
+       game.Lighting.Brightness = 2
+       game.Lighting.FogEnd = 100000
+   end,
 })
