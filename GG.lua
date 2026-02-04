@@ -1,117 +1,88 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "GHOST HUB: SOLO HUNTERS ⚔️",
-   LoadingTitle = "Ultimate Quest & Farm",
-   LoadingSubtitle = "Power Level: 40",
-   ConfigurationSaving = { Enabled = true, Folder = "GhostHub_V5" }
+   Name = "GHOST HUB: DUNGEON MASTER ⚔️",
+   LoadingTitle = "Dungeon Auto-Clear System",
+   LoadingSubtitle = "Power Level: 40+",
+   ConfigurationSaving = { Enabled = true, Folder = "GhostDungeon" }
 })
 
 -- [[ SETTINGS ]]
-_G.AutoFarm = false
-_G.AutoQuest = false
-_G.SelectMonster = "None"
-_G.Distance = 10
-
--- [[ BLACKLIST & MONSTER SCANNER ]]
-local Blacklist = {"npc", "shop", "quest", "trainer", "stat", "dummy", "bank", "gate"}
-local MonsterList = {}
-for _, v in pairs(workspace:GetChildren()) do
-    if v:IsA("Model") and v:FindFirstChild("Humanoid") and not game.Players:GetPlayerFromCharacter(v) then
-        local nameLower = v.Name:lower()
-        local isBlacklisted = false
-        for _, word in pairs(Blacklist) do if nameLower:find(word) then isBlacklisted = true end end
-        if not isBlacklisted and v.Humanoid.Health > 0 then
-            if not table.find(MonsterList, v.Name) then table.insert(MonsterList, v.Name) end
-        end
-    end
-end
+_G.AutoClear = false
+_G.Distance = 8 -- ระยะห่างเหนือหัวมอนสเตอร์
 
 -- [[ TABS ]]
-local MainTab = Window:CreateTab("Auto Farm", 4483362458)
-local QuestTab = Window:CreateTab("Quests", 4483362458)
-local DungeonTab = Window:CreateTab("Dungeons", 4483362458)
+local DungeonTab = Window:CreateTab("Dungeon Mode", 4483362458)
 
--- [[ 1. MAIN FARM TAB ]]
-MainTab:CreateDropdown({
-   Name = "Select Monster",
-   Options = MonsterList,
-   CurrentOption = "None",
-   Callback = function(Option) _G.SelectMonster = Option[1] end,
-})
+DungeonTab:CreateSection("Main Controls")
 
-MainTab:CreateToggle({
-   Name = "Start Auto Farm",
+DungeonTab:CreateToggle({
+   Name = "Auto Clear Dungeon (ตีทุกตัวในห้อง)",
    CurrentValue = false,
    Callback = function(Value)
-      _G.AutoFarm = Value
-      if Value then StartFarm() end
+      _G.AutoClear = Value
+      if Value then StartDungeonClear() end
    end,
 })
 
--- [[ 2. QUEST TAB (เพิ่มใหม่) ]]
-QuestTab:CreateSection("Auto Questing System")
-
-QuestTab:CreateToggle({
-   Name = "Auto Accept/Complete Quest",
-   CurrentValue = false,
-   Callback = function(Value)
-      _G.AutoQuest = Value
-      if Value then StartQuestLogic() end
-   end,
+DungeonTab:CreateSlider({
+   Name = "Farm Distance",
+   Range = {5, 15},
+   Increment = 1,
+   CurrentValue = 8,
+   Callback = function(Value) _G.Distance = Value end,
 })
 
-QuestTab:CreateParagraph({Title = "คำแนะนำ", Content = "ระบบจะพยายามรับเควสที่ตรงกับมอนสเตอร์ที่คุณเลือกในหน้า Auto Farm ให้อัตโนมัติ"})
-
--- [[ 3. DUNGEON TAB ]]
+DungeonTab:CreateSection("Entry")
 DungeonTab:CreateButton({
-   Name = "TP to Dungeon Entrance (Wait 1s)",
+   Name = "Force Teleport to Gate D",
    Callback = function()
       local hrp = game.Players.LocalPlayer.Character.HumanoidRootPart
-      for i = 1, 20 do -- เพิ่มเป็น 20 รอบเพื่อกันเด้ง
+      for i = 1, 15 do
           hrp.CFrame = CFrame.new(450.5, 12, -320.5)
           task.wait(0.05)
       end
    end,
 })
 
--- [[ LOGIC CORE ]]
-
--- ฟังก์ชันจัดการเควส
-function StartQuestLogic()
-    task.spawn(function()
-        while _G.AutoQuest do
-            task.wait(2)
-            pcall(function()
-                -- ค้นหา Remote สำหรับรับเควส (ชื่อมักจะวนเวียนอยู่กับ Quest/Accept)
-                local remote = game:GetService("ReplicatedStorage"):FindFirstChild("AcceptQuest") or 
-                              game:GetService("ReplicatedStorage"):FindFirstChild("GetQuest") or
-                              game:GetService("ReplicatedStorage"):FindFirstChild("QuestRemote")
-                
-                if remote and _G.SelectMonster ~= "None" then
-                    -- พยายามรับเควสตามชื่อมอนสเตอร์ที่เลือกไว้
-                    remote:FireServer(_G.SelectMonster)
-                end
-            end)
-        end
-    end)
-end
-
-function StartFarm()
+-- [[ LOGIC: เคลียร์มอนสเตอร์ในดันเจี้ยนเท่านั้น ]]
+function StartDungeonClear()
     task.spawn(function()
         local lp = game.Players.LocalPlayer
-        while _G.AutoFarm do
+        while _G.AutoClear do
             task.wait(0.1)
             pcall(function()
-                for _, v in pairs(workspace:GetChildren()) do
-                    if v.Name == _G.SelectMonster and v.Humanoid.Health > 0 then
-                        lp.Character.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, _G.Distance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                        game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                -- สแกนหามอนสเตอร์ที่อยู่ในโฟลเดอร์ "Dungeon" หรือ "Monsters" เท่านั้น
+                -- วิธีนี้จะ "ข้าม" NPC ทุกตัวในเมือง เพราะ NPC ไม่อยู่ในดันเจี้ยน
+                local target = nil
+                local dist = math.huge
+                
+                for _, v in pairs(workspace:GetDescendants()) do
+                    -- เช็คว่าเป็นมอนสเตอร์ (มี Humanoid + เลือด > 0)
+                    -- และต้องไม่ใช่ตัวเราเอง + ไม่ใช่ผู้เล่นคนอื่น
+                    if v:IsA("Humanoid") and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") then
+                        if not game.Players:GetPlayerFromCharacter(v.Parent) and v.Parent.Name ~= lp.Name then
+                            
+                            -- คัดกรอง NPC ออกจากชื่อ (กันเหนียว)
+                            local n = v.Parent.Name:lower()
+                            if not n:find("npc") and not n:find("shop") and not n:find("quest") then
+                                local d = (lp.Character.HumanoidRootPart.Position - v.Parent.HumanoidRootPart.Position).Magnitude
+                                if d < dist then
+                                    dist = d
+                                    target = v.Parent.HumanoidRootPart
+                                end
+                            end
+                        end
                     end
+                end
+
+                if target then
+                    -- วาร์ปไปเหนือหัวมอนสเตอร์
+                    lp.Character.HumanoidRootPart.CFrame = target.CFrame * CFrame.new(0, _G.Distance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                    -- สั่งโจมตี
+                    game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
                 end
             end)
         end
     end)
 end
-
-Rayfield:LoadConfiguration()
