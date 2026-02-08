@@ -1,99 +1,82 @@
 --[[
-    CUSTOM ABYSS SCRIPT - BY [YOUR NAME/GITHUB]
-    VERSION: 1.0
+    CUSTOM ABYSS HUB (IMPROVED VERSION)
+    - Fix: Silent Aim accuracy
+    - Add: Field of View (FOV) Circle
+    - Add: Better Prediction
 --]]
 
-local Library = {} -- สร้าง Library สำหรับ GUI แบบง่าย
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-local MainFrame = Instance.new("Frame", ScreenGui)
-
--- // UI SETUP // --
-MainFrame.Size = UDim2.new(0, 250, 0, 300)
-MainFrame.Position = UDim2.new(0.5, -125, 0.5, -150)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true -- ทำให้ลากเมนูไปมาได้
-
-local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "CUSTOM ABYSS HUB"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 20
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = workspace.CurrentCamera
 
 -- // CONFIGURATION // --
-_G.SilentAim = true
-_G.Prediction = 0.125
-_G.FOV = 150
-_G.TriggerBot = false
+getgenv().Config = {
+    SilentAim = true,
+    TriggerBot = false,
+    Prediction = 0.135, -- ปรับค่าตามความเร็วของเกม
+    FOVSize = 150,
+    TargetPart = "HumanoidRootPart"
+}
+
+-- // FOV CIRCLE // --
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 2
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
+FOVCircle.Visible = true
 
 -- // FUNCTIONS // --
 local function GetClosestPlayer()
-    local target = nil
-    local dist = _G.FOV
-    for _, v in pairs(game.Players:GetPlayers()) do
-        if v ~= game.Players.LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-            local pos, vis = game.Workspace.CurrentCamera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
-            if vis then
-                local magnitude = (Vector2.new(pos.X, pos.Y) - Vector2.new(game.Players.LocalPlayer:GetMouse().X, game.Players.LocalPlayer:GetMouse().Y)).Magnitude
-                if magnitude < dist then
-                    target = v
-                    dist = magnitude
+    local Target = nil
+    local ClosestDist = getgenv().Config.FOVSize
+
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(getgenv().Config.TargetPart) then
+            -- ตรวจสอบว่าศัตรูไม่ตาย
+            local Humanoid = v.Character:FindFirstChildOfClass("Humanoid")
+            if Humanoid and Humanoid.Health > 0 then
+                local ScreenPos, IsVisible = Camera:WorldToViewportPoint(v.Character[getgenv().Config.TargetPart].Position)
+                if IsVisible then
+                    local MousePos = Vector2.new(Mouse.X, Mouse.Y)
+                    local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - MousePos).Magnitude
+                    
+                    if Distance < ClosestDist then
+                        Target = v
+                        ClosestDist = Distance
+                    end
                 end
             end
         end
     end
-    return target
+    return Target
 end
 
--- // SILENT AIM LOGIC // --
-local mt = getrawmetatable(game)
-setreadonly(mt, false)
-local old = mt.__namecall
+-- // SILENT AIM HOOK // --
+local OldNamecall
+OldNamecall = hookmetamethod(game, "__namecall", function(Self, ...)
+    local Args = {...}
+    local Method = getnamecallmethod()
 
-mt.__namecall = newcclosure(function(self, ...)
-    local args = {...}
-    local method = getnamecallmethod()
-    if _G.SilentAim and method == "FindPartOnRayWithIgnoreList" then
-        local target = GetClosestPlayer()
-        if target then
-            args[1] = Ray.new(game.Workspace.CurrentCamera.CFrame.Position, (target.Character.HumanoidRootPart.Position + (target.Character.HumanoidRootPart.Velocity * _G.Prediction) - game.Workspace.CurrentCamera.CFrame.Position).Unit * 1000)
-            return old(self, unpack(args))
+    if Method == "FindPartOnRayWithIgnoreList" and getgenv().Config.SilentAim and not checkcaller() then
+        local Target = GetClosestPlayer()
+        if Target then
+            local TargetPos = Target.Character[getgenv().Config.TargetPart].Position + (Target.Character[getgenv().Config.TargetPart].Velocity * getgenv().Config.Prediction)
+            Args[1] = Ray.new(Camera.CFrame.Position, (TargetPos - Camera.CFrame.Position).Unit * 1000)
+            return OldNamecall(Self, unpack(Args))
         end
     end
-    return old(self, ...)
+    return OldNamecall(Self, ...)
 end)
 
--- // SIMPLE UI BUTTONS // --
-local function CreateButton(text, pos, callback)
-    local btn = Instance.new("TextButton", MainFrame)
-    btn.Size = UDim2.new(0.8, 0, 0, 40)
-    btn.Position = UDim2.new(0.1, 0, 0, pos)
-    btn.Text = text
-    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 18
-    
-    btn.MouseButton1Click:Connect(callback)
-end
-
--- สร้างปุ่มควบคุม
-CreateButton("Toggle Silent Aim: ON", 60, function()
-    _G.SilentAim = not _G.SilentAim
-    print("Silent Aim: " .. tostring(_G.SilentAim))
+-- // UPDATE FOV // --
+RunService.RenderStepped:Connect(function()
+    FOVCircle.Radius = getgenv().Config.FOVSize
+    FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
 end)
 
-CreateButton("Toggle TriggerBot: OFF", 110, function()
-    _G.TriggerBot = not _G.TriggerBot
-    print("TriggerBot: " .. tostring(_G.TriggerBot))
-end)
-
-CreateButton("Reset Config", 160, function()
-    _G.Prediction = 0.125
-    _G.FOV = 150
-end)
-
-print("Script Loaded Successfully!")
+-- // UI SETUP (แบบที่คุณใช้อยู่) // --
+-- (ส่วนนี้ใช้ UI เดิมที่คุณรันขึ้นมาได้เลยครับ แค่เปลี่ยน Function การทำงานของปุ่ม)
+print("Advanced Abyss Script Loaded!")
