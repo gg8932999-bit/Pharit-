@@ -1,96 +1,99 @@
 --[[
-    Aurora Configuration for Abyss
-    Saved on my GitHub
+    CUSTOM ABYSS SCRIPT - BY [YOUR NAME/GITHUB]
+    VERSION: 1.0
 --]]
 
-local aurora = { config = {
-    ["Conditions"] = {
-        ['Visible'] = true,
-        ['Knocked'] = false, -- ปิดไว้เพื่อไม่ให้ล็อคเป้าคนที่ล้มแล้ว
-        ['SelfKnocked'] = false,
-        ['Grabbed'] = true,
-        ['Forcefield'] = false,
-    },
+local Library = {} -- สร้าง Library สำหรับ GUI แบบง่าย
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local MainFrame = Instance.new("Frame", ScreenGui)
 
-    ["Macro"] = {
-        ['Enabled'] = true,
-        ['Keybind'] = {
-            ['Key'] = 'X', -- ปุ่มสำหรับทำ Speed Glitch
-            ['Mode'] = 'Hold',
-        }
-    },
-        
-    ["SilentAim"] = {
-        ['Enabled'] = true, -- เปิดใช้งาน Silent Aim
-        ['DualBind'] = false,
-        ['Toggle'] = 'C', -- ปุ่มเปิด/ปิด
-        ['Untoggle'] = 'X',
-        ['FovType'] = '2DBox',
-        ['Mode'] = 'Auto', 
-        ['Point'] = 'Nearest Point',
-        ['Type'] = 'Advanced',
-        ['Scale'] = 0.5,
-        ['FOV'] = {
-            ['Visible'] = true, -- แสดงวงกลม FOV
-            ['FOV'] = {
-                ['Weapon Configuration'] = {
-                    ['Shotguns'] = { ['WidthLeftSide'] = 0.6, ['WidthRightSide'] = 0.6, ['HeightUpper'] = 1.1, ['HeightLower'] = 1.1 },
-                    ['Rifles'] = { ['WidthLeftSide'] = 0.5, ['WidthRightSide'] = 0.5, ['HeightUpper'] = 1.0, ['HeightLower'] = 1.0 },
-                    ['Pistols'] = { ['WidthLeftSide'] = 0.5, ['WidthRightSide'] = 0.5, ['HeightUpper'] = 1.0, ['HeightLower'] = 1.0 },
-                },
-            },
-        },
-        ['Prediction'] = { 
-            ['Enabled'] = true, 
-            ['Ground'] = 0.125, -- ปรับตาม Ping (0.12 - 0.15)
-            ['Air'] = 0.125, 
-            ['Stabilize'] = 5,
-        }, 
-    },
+-- // UI SETUP // --
+MainFrame.Size = UDim2.new(0, 250, 0, 300)
+MainFrame.Position = UDim2.new(0.5, -125, 0.5, -150)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true -- ทำให้ลากเมนูไปมาได้
 
-    ["TriggerBot"] = {
-        ['Enabled'] = true,
-        ['HitboxRadius'] = 1,
-        ['Toggle'] = 'E', -- ปุ่มกดยิงอัตโนมัติ
-        ['Input'] = 'Keyboard',
-        ['DetectionMode'] = '2DBox',
-        ['Type'] = 'Hold',
-        ['Delay'] = { 
-            ['Enabled'] = true,
-            ['Weapon'] = { 
-                ['[Double-Barrel SG]'] = 0.05, 
-                ['[TacticalShotgun]'] = 0.05, 
-                ['[Revolver]'] = 0.05,
-                ['[AK47]'] = 0.07,
-                ['[AR]'] = 0.07
-            } 
-        },
-    },
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Text = "CUSTOM ABYSS HUB"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 20
 
-    ["Enhancements"] = { 
-        ['Spread Modifier'] = { 
-            ['Enabled'] = true, 
-            ['Weapon'] = { 
-                ['[Double-Barrel SG]'] = 0.25,
-                ['[Shotgun]'] = 0.25 
-            },
-            ['Randomizer'] = { 
-                ['Enabled'] = true, 
-                ['Value'] = math.random(0.15, 0.45) 
-            } 
-        },
-    }, 
+-- // CONFIGURATION // --
+_G.SilentAim = true
+_G.Prediction = 0.125
+_G.FOV = 150
+_G.TriggerBot = false
 
-    ['Speed Modifiers'] = {
-        ['Enabled'] = false, -- แนะนำให้ปิดไว้เพื่อความปลอดภัย
-        ['Multiplier Mode'] = 'Multiply',
-		['Normal'] = { ['Multiplier'] = 1.5 },
-    },
-} }
+-- // FUNCTIONS // --
+local function GetClosestPlayer()
+    local target = nil
+    local dist = _G.FOV
+    for _, v in pairs(game.Players:GetPlayers()) do
+        if v ~= game.Players.LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+            local pos, vis = game.Workspace.CurrentCamera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
+            if vis then
+                local magnitude = (Vector2.new(pos.X, pos.Y) - Vector2.new(game.Players.LocalPlayer:GetMouse().X, game.Players.LocalPlayer:GetMouse().Y)).Magnitude
+                if magnitude < dist then
+                    target = v
+                    dist = magnitude
+                end
+            end
+        end
+    end
+    return target
+end
 
--- ส่งค่า Config ไปยังตัวสคริปต์หลัก
-_G.aurora = aurora
-getgenv().aurora = aurora
+-- // SILENT AIM LOGIC // --
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
+local old = mt.__namecall
 
--- บรรทัดโหลด Loader หลักของ Aurora
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Nflar/abyss/refs/heads/main/roblox.lua"))()
+mt.__namecall = newcclosure(function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
+    if _G.SilentAim and method == "FindPartOnRayWithIgnoreList" then
+        local target = GetClosestPlayer()
+        if target then
+            args[1] = Ray.new(game.Workspace.CurrentCamera.CFrame.Position, (target.Character.HumanoidRootPart.Position + (target.Character.HumanoidRootPart.Velocity * _G.Prediction) - game.Workspace.CurrentCamera.CFrame.Position).Unit * 1000)
+            return old(self, unpack(args))
+        end
+    end
+    return old(self, ...)
+end)
+
+-- // SIMPLE UI BUTTONS // --
+local function CreateButton(text, pos, callback)
+    local btn = Instance.new("TextButton", MainFrame)
+    btn.Size = UDim2.new(0.8, 0, 0, 40)
+    btn.Position = UDim2.new(0.1, 0, 0, pos)
+    btn.Text = text
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 18
+    
+    btn.MouseButton1Click:Connect(callback)
+end
+
+-- สร้างปุ่มควบคุม
+CreateButton("Toggle Silent Aim: ON", 60, function()
+    _G.SilentAim = not _G.SilentAim
+    print("Silent Aim: " .. tostring(_G.SilentAim))
+end)
+
+CreateButton("Toggle TriggerBot: OFF", 110, function()
+    _G.TriggerBot = not _G.TriggerBot
+    print("TriggerBot: " .. tostring(_G.TriggerBot))
+end)
+
+CreateButton("Reset Config", 160, function()
+    _G.Prediction = 0.125
+    _G.FOV = 150
+end)
+
+print("Script Loaded Successfully!")
