@@ -1,73 +1,76 @@
--- [[ ABYSS MISSION HELPER - LITE EDITION ]] --
+-- [[ ABYSS ULTIMATE HUB - WARP & SELECT TARGET ]] --
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-local Camera = workspace.CurrentCamera
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Root = Character:WaitForChild("HumanoidRootPart")
 
--- ตั้งค่าเป้าหมายตามภารกิจในรูปของคุณ
-getgenv().MissionConfig = {
-    SilentAim = true,
-    Prediction = 0.14, -- เพิ่มนิดหน่อยเพราะ Hammerhead ว่ายไว
-    FOVSize = 150,
-    -- รายชื่อปลาที่สคริปต์จะค้นหา
-    Targets = {"Hammerhead", "Blue Tang", "Red Fish", "Fish"} 
+-- // CONFIG // --
+getgenv().Config = {
+    Target = "Hammerhead", -- ค่าเริ่มต้น
+    AutoWarp = false,
+    SilentAim = true
 }
 
-local function GetMissionTarget()
-    local Target = nil
-    local Closest = getgenv().MissionConfig.FOVSize
+-- // UI SETUP (แบบพับได้) // --
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 160, 0, 200)
+MainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Visible = true
 
-    -- ค้นหาใน Workspace (มักจะอยู่ใน Folder เช่น Mobs หรือ Fish)
-    for _, v in pairs(workspace:GetChildren()) do
-        local isTarget = false
-        for _, name in pairs(getgenv().MissionConfig.Targets) do
-            if string.find(v.Name, name) then
-                isTarget = true
-                break
-            end
-        end
+local ToggleMenu = Instance.new("TextButton", ScreenGui)
+ToggleMenu.Size = UDim2.new(0, 60, 0, 30)
+ToggleMenu.Position = UDim2.new(0.05, 0, 0.25, 0)
+ToggleMenu.Text = "เปิด/ปิดเมนู"
+ToggleMenu.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
 
-        if isTarget and v:FindFirstChild("HumanoidRootPart") then
-            local Pos, OnScreen = Camera:WorldToViewportPoint(v.HumanoidRootPart.Position)
-            if OnScreen then
-                local Dist = (Vector2.new(Pos.X, Pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                if Dist < Closest then
-                    Closest = Dist
-                    Target = v
-                end
-            end
+ToggleMenu.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- // FUNCTIONS // --
+local function GetFish(name)
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("Model") and string.find(v.Name:lower(), name:lower()) then
+            local fishRoot = v:FindFirstChild("HumanoidRootPart") or v:FindFirstChild("Head")
+            if fishRoot then return v, fishRoot end
         end
     end
-    return Target
+    return nil
 end
 
--- ระบบล็อคเป้าฉมวก (ใช้ Index เพื่อความลื่นไหลที่สุด)
-local OldIndex
-OldIndex = hookmetamethod(game, "__index", function(self, index)
-    if self == Mouse and (index == "Hit") and getgenv().MissionConfig.SilentAim then
-        local Target = GetMissionTarget()
-        if Target then
-            local PredictedPos = Target.HumanoidRootPart.Position + (Target.HumanoidRootPart.Velocity * getgenv().MissionConfig.Prediction)
-            return CFrame.new(PredictedPos)
+-- // WARP SYSTEM // --
+task.spawn(function()
+    while task.wait(0.5) do
+        if getgenv().Config.AutoWarp then
+            local targetModel, targetPart = GetFish(getgenv().Config.Target)
+            if targetPart then
+                Root.CFrame = targetPart.CFrame * CFrame.new(0, 0, 5) -- วาร์ปไปข้างหลังปลา 5 เมตร
+            end
         end
     end
-    return OldIndex(self, index)
 end)
 
--- ปุ่มกดแบบลอย (เล็กและไม่กินสเปก)
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-local MainBtn = Instance.new("TextButton", ScreenGui)
-MainBtn.Size = UDim2.new(0, 120, 0, 40)
-MainBtn.Position = UDim2.new(0.1, 0, 0.1, 0)
-MainBtn.Text = "Mission Aim: ON"
-MainBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-MainBtn.TextColor3 = Color3.new(1, 1, 1)
-MainBtn.Draggable = true -- ลากไปวางตรงไหนก็ได้ไม่ให้บังจอ
+-- // UI BUTTONS // --
+local function CreateBtn(text, pos, callback)
+    local btn = Instance.new("TextButton", MainFrame)
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
+    btn.Position = UDim2.new(0.05, 0, 0, pos)
+    btn.Text = text
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.MouseButton1Click:Connect(callback)
+end
 
-MainBtn.MouseButton1Click:Connect(function()
-    getgenv().MissionConfig.SilentAim = not getgenv().MissionConfig.SilentAim
-    MainBtn.Text = getgenv().MissionConfig.SilentAim and "Mission Aim: ON" or "Mission Aim: OFF"
-    MainBtn.BackgroundColor3 = getgenv().MissionConfig.SilentAim and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(150, 0, 0)
+-- เลือกเป้าหมายตามภารกิจของคุณ
+CreateBtn("เป้าหมาย: Hammerhead", 10, function() getgenv().Config.Target = "Hammerhead" end)
+CreateBtn("เป้าหมาย: Blue Tang", 50, function() getgenv().Config.Target = "Blue Tang" end)
+CreateBtn("เป้าหมาย: Red Fish", 90, function() getgenv().Config.Target = "Red Fish" end)
+
+CreateBtn("วาร์ปไปหาปลา: OFF", 140, function(self) 
+    getgenv().Config.AutoWarp = not getgenv().Config.AutoWarp
+    MainFrame:GetChildren()[5].Text = getgenv().Config.AutoWarp and "วาร์ปไปหาปลา: ON" or "วาร์ปไปหาปลา: OFF"
 end)
 
-print("Abyss Mission Script Loaded - Ready to hunt Hammerhead!")
+print("Abyss Warp Hub Loaded!")
