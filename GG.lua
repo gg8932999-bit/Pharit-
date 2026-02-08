@@ -1,52 +1,39 @@
---[[
-    CUSTOM ABYSS HUB (IMPROVED VERSION)
-    - Fix: Silent Aim accuracy
-    - Add: Field of View (FOV) Circle
-    - Add: Better Prediction
---]]
-
+-- [[ ABYSS MISSION HELPER - LITE EDITION ]] --
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local Camera = workspace.CurrentCamera
 
--- // CONFIGURATION // --
-getgenv().Config = {
+-- ตั้งค่าเป้าหมายตามภารกิจในรูปของคุณ
+getgenv().MissionConfig = {
     SilentAim = true,
-    TriggerBot = false,
-    Prediction = 0.135, -- ปรับค่าตามความเร็วของเกม
+    Prediction = 0.14, -- เพิ่มนิดหน่อยเพราะ Hammerhead ว่ายไว
     FOVSize = 150,
-    TargetPart = "HumanoidRootPart"
+    -- รายชื่อปลาที่สคริปต์จะค้นหา
+    Targets = {"Hammerhead", "Blue Tang", "Red Fish", "Fish"} 
 }
 
--- // FOV CIRCLE // --
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 2
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
-FOVCircle.Filled = false
-FOVCircle.Transparency = 1
-FOVCircle.Visible = true
-
--- // FUNCTIONS // --
-local function GetClosestPlayer()
+local function GetMissionTarget()
     local Target = nil
-    local ClosestDist = getgenv().Config.FOVSize
+    local Closest = getgenv().MissionConfig.FOVSize
 
-    for _, v in pairs(Players:GetPlayers()) do
-        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(getgenv().Config.TargetPart) then
-            -- ตรวจสอบว่าศัตรูไม่ตาย
-            local Humanoid = v.Character:FindFirstChildOfClass("Humanoid")
-            if Humanoid and Humanoid.Health > 0 then
-                local ScreenPos, IsVisible = Camera:WorldToViewportPoint(v.Character[getgenv().Config.TargetPart].Position)
-                if IsVisible then
-                    local MousePos = Vector2.new(Mouse.X, Mouse.Y)
-                    local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - MousePos).Magnitude
-                    
-                    if Distance < ClosestDist then
-                        Target = v
-                        ClosestDist = Distance
-                    end
+    -- ค้นหาใน Workspace (มักจะอยู่ใน Folder เช่น Mobs หรือ Fish)
+    for _, v in pairs(workspace:GetChildren()) do
+        local isTarget = false
+        for _, name in pairs(getgenv().MissionConfig.Targets) do
+            if string.find(v.Name, name) then
+                isTarget = true
+                break
+            end
+        end
+
+        if isTarget and v:FindFirstChild("HumanoidRootPart") then
+            local Pos, OnScreen = Camera:WorldToViewportPoint(v.HumanoidRootPart.Position)
+            if OnScreen then
+                local Dist = (Vector2.new(Pos.X, Pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                if Dist < Closest then
+                    Closest = Dist
+                    Target = v
                 end
             end
         end
@@ -54,29 +41,33 @@ local function GetClosestPlayer()
     return Target
 end
 
--- // SILENT AIM HOOK // --
-local OldNamecall
-OldNamecall = hookmetamethod(game, "__namecall", function(Self, ...)
-    local Args = {...}
-    local Method = getnamecallmethod()
-
-    if Method == "FindPartOnRayWithIgnoreList" and getgenv().Config.SilentAim and not checkcaller() then
-        local Target = GetClosestPlayer()
+-- ระบบล็อคเป้าฉมวก (ใช้ Index เพื่อความลื่นไหลที่สุด)
+local OldIndex
+OldIndex = hookmetamethod(game, "__index", function(self, index)
+    if self == Mouse and (index == "Hit") and getgenv().MissionConfig.SilentAim then
+        local Target = GetMissionTarget()
         if Target then
-            local TargetPos = Target.Character[getgenv().Config.TargetPart].Position + (Target.Character[getgenv().Config.TargetPart].Velocity * getgenv().Config.Prediction)
-            Args[1] = Ray.new(Camera.CFrame.Position, (TargetPos - Camera.CFrame.Position).Unit * 1000)
-            return OldNamecall(Self, unpack(Args))
+            local PredictedPos = Target.HumanoidRootPart.Position + (Target.HumanoidRootPart.Velocity * getgenv().MissionConfig.Prediction)
+            return CFrame.new(PredictedPos)
         end
     end
-    return OldNamecall(Self, ...)
+    return OldIndex(self, index)
 end)
 
--- // UPDATE FOV // --
-RunService.RenderStepped:Connect(function()
-    FOVCircle.Radius = getgenv().Config.FOVSize
-    FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
+-- ปุ่มกดแบบลอย (เล็กและไม่กินสเปก)
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local MainBtn = Instance.new("TextButton", ScreenGui)
+MainBtn.Size = UDim2.new(0, 120, 0, 40)
+MainBtn.Position = UDim2.new(0.1, 0, 0.1, 0)
+MainBtn.Text = "Mission Aim: ON"
+MainBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+MainBtn.TextColor3 = Color3.new(1, 1, 1)
+MainBtn.Draggable = true -- ลากไปวางตรงไหนก็ได้ไม่ให้บังจอ
+
+MainBtn.MouseButton1Click:Connect(function()
+    getgenv().MissionConfig.SilentAim = not getgenv().MissionConfig.SilentAim
+    MainBtn.Text = getgenv().MissionConfig.SilentAim and "Mission Aim: ON" or "Mission Aim: OFF"
+    MainBtn.BackgroundColor3 = getgenv().MissionConfig.SilentAim and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(150, 0, 0)
 end)
 
--- // UI SETUP (แบบที่คุณใช้อยู่) // --
--- (ส่วนนี้ใช้ UI เดิมที่คุณรันขึ้นมาได้เลยครับ แค่เปลี่ยน Function การทำงานของปุ่ม)
-print("Advanced Abyss Script Loaded!")
+print("Abyss Mission Script Loaded - Ready to hunt Hammerhead!")
