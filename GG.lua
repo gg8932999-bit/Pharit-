@@ -1,88 +1,96 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+--[[
+    Aurora Configuration for Abyss
+    Saved on my GitHub
+--]]
 
-local Window = Rayfield:CreateWindow({
-   Name = "GHOST HUB: DUNGEON MASTER ⚔️",
-   LoadingTitle = "Dungeon Auto-Clear System",
-   LoadingSubtitle = "Power Level: 40+",
-   ConfigurationSaving = { Enabled = true, Folder = "GhostDungeon" }
-})
+local aurora = { config = {
+    ["Conditions"] = {
+        ['Visible'] = true,
+        ['Knocked'] = false, -- ปิดไว้เพื่อไม่ให้ล็อคเป้าคนที่ล้มแล้ว
+        ['SelfKnocked'] = false,
+        ['Grabbed'] = true,
+        ['Forcefield'] = false,
+    },
 
--- [[ SETTINGS ]]
-_G.AutoClear = false
-_G.Distance = 8 -- ระยะห่างเหนือหัวมอนสเตอร์
+    ["Macro"] = {
+        ['Enabled'] = true,
+        ['Keybind'] = {
+            ['Key'] = 'X', -- ปุ่มสำหรับทำ Speed Glitch
+            ['Mode'] = 'Hold',
+        }
+    },
+        
+    ["SilentAim"] = {
+        ['Enabled'] = true, -- เปิดใช้งาน Silent Aim
+        ['DualBind'] = false,
+        ['Toggle'] = 'C', -- ปุ่มเปิด/ปิด
+        ['Untoggle'] = 'X',
+        ['FovType'] = '2DBox',
+        ['Mode'] = 'Auto', 
+        ['Point'] = 'Nearest Point',
+        ['Type'] = 'Advanced',
+        ['Scale'] = 0.5,
+        ['FOV'] = {
+            ['Visible'] = true, -- แสดงวงกลม FOV
+            ['FOV'] = {
+                ['Weapon Configuration'] = {
+                    ['Shotguns'] = { ['WidthLeftSide'] = 0.6, ['WidthRightSide'] = 0.6, ['HeightUpper'] = 1.1, ['HeightLower'] = 1.1 },
+                    ['Rifles'] = { ['WidthLeftSide'] = 0.5, ['WidthRightSide'] = 0.5, ['HeightUpper'] = 1.0, ['HeightLower'] = 1.0 },
+                    ['Pistols'] = { ['WidthLeftSide'] = 0.5, ['WidthRightSide'] = 0.5, ['HeightUpper'] = 1.0, ['HeightLower'] = 1.0 },
+                },
+            },
+        },
+        ['Prediction'] = { 
+            ['Enabled'] = true, 
+            ['Ground'] = 0.125, -- ปรับตาม Ping (0.12 - 0.15)
+            ['Air'] = 0.125, 
+            ['Stabilize'] = 5,
+        }, 
+    },
 
--- [[ TABS ]]
-local DungeonTab = Window:CreateTab("Dungeon Mode", 4483362458)
+    ["TriggerBot"] = {
+        ['Enabled'] = true,
+        ['HitboxRadius'] = 1,
+        ['Toggle'] = 'E', -- ปุ่มกดยิงอัตโนมัติ
+        ['Input'] = 'Keyboard',
+        ['DetectionMode'] = '2DBox',
+        ['Type'] = 'Hold',
+        ['Delay'] = { 
+            ['Enabled'] = true,
+            ['Weapon'] = { 
+                ['[Double-Barrel SG]'] = 0.05, 
+                ['[TacticalShotgun]'] = 0.05, 
+                ['[Revolver]'] = 0.05,
+                ['[AK47]'] = 0.07,
+                ['[AR]'] = 0.07
+            } 
+        },
+    },
 
-DungeonTab:CreateSection("Main Controls")
+    ["Enhancements"] = { 
+        ['Spread Modifier'] = { 
+            ['Enabled'] = true, 
+            ['Weapon'] = { 
+                ['[Double-Barrel SG]'] = 0.25,
+                ['[Shotgun]'] = 0.25 
+            },
+            ['Randomizer'] = { 
+                ['Enabled'] = true, 
+                ['Value'] = math.random(0.15, 0.45) 
+            } 
+        },
+    }, 
 
-DungeonTab:CreateToggle({
-   Name = "Auto Clear Dungeon (ตีทุกตัวในห้อง)",
-   CurrentValue = false,
-   Callback = function(Value)
-      _G.AutoClear = Value
-      if Value then StartDungeonClear() end
-   end,
-})
+    ['Speed Modifiers'] = {
+        ['Enabled'] = false, -- แนะนำให้ปิดไว้เพื่อความปลอดภัย
+        ['Multiplier Mode'] = 'Multiply',
+		['Normal'] = { ['Multiplier'] = 1.5 },
+    },
+} }
 
-DungeonTab:CreateSlider({
-   Name = "Farm Distance",
-   Range = {5, 15},
-   Increment = 1,
-   CurrentValue = 8,
-   Callback = function(Value) _G.Distance = Value end,
-})
+-- ส่งค่า Config ไปยังตัวสคริปต์หลัก
+_G.aurora = aurora
+getgenv().aurora = aurora
 
-DungeonTab:CreateSection("Entry")
-DungeonTab:CreateButton({
-   Name = "Force Teleport to Gate D",
-   Callback = function()
-      local hrp = game.Players.LocalPlayer.Character.HumanoidRootPart
-      for i = 1, 15 do
-          hrp.CFrame = CFrame.new(450.5, 12, -320.5)
-          task.wait(0.05)
-      end
-   end,
-})
-
--- [[ LOGIC: เคลียร์มอนสเตอร์ในดันเจี้ยนเท่านั้น ]]
-function StartDungeonClear()
-    task.spawn(function()
-        local lp = game.Players.LocalPlayer
-        while _G.AutoClear do
-            task.wait(0.1)
-            pcall(function()
-                -- สแกนหามอนสเตอร์ที่อยู่ในโฟลเดอร์ "Dungeon" หรือ "Monsters" เท่านั้น
-                -- วิธีนี้จะ "ข้าม" NPC ทุกตัวในเมือง เพราะ NPC ไม่อยู่ในดันเจี้ยน
-                local target = nil
-                local dist = math.huge
-                
-                for _, v in pairs(workspace:GetDescendants()) do
-                    -- เช็คว่าเป็นมอนสเตอร์ (มี Humanoid + เลือด > 0)
-                    -- และต้องไม่ใช่ตัวเราเอง + ไม่ใช่ผู้เล่นคนอื่น
-                    if v:IsA("Humanoid") and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") then
-                        if not game.Players:GetPlayerFromCharacter(v.Parent) and v.Parent.Name ~= lp.Name then
-                            
-                            -- คัดกรอง NPC ออกจากชื่อ (กันเหนียว)
-                            local n = v.Parent.Name:lower()
-                            if not n:find("npc") and not n:find("shop") and not n:find("quest") then
-                                local d = (lp.Character.HumanoidRootPart.Position - v.Parent.HumanoidRootPart.Position).Magnitude
-                                if d < dist then
-                                    dist = d
-                                    target = v.Parent.HumanoidRootPart
-                                end
-                            end
-                        end
-                    end
-                end
-
-                if target then
-                    -- วาร์ปไปเหนือหัวมอนสเตอร์
-                    lp.Character.HumanoidRootPart.CFrame = target.CFrame * CFrame.new(0, _G.Distance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                    -- สั่งโจมตี
-                    game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                end
-            end)
-        end
-    end)
-end
+-- บรรทัดโหลด Loader หลักของ Aurora
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Nflar/abyss/refs/heads/main/roblox.lua"))()
